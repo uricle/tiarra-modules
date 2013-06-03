@@ -307,6 +307,11 @@ sub _config
 	 # twitter
 	 {
 	  url     => 're:https?://twitter.com/.*',
+	  #extract => qr{<p class="js-tweet-text.*?">(.*?)</p>}sio,
+# 	  extract => [
+# 		      qr{<p class="js-tweet-text .*?">(.*?)</p>}sio,
+# 		      qr{<div class="tweet-text js-tweet-text">(.*?)</div>}sio,
+# 		     ],
 	  extract => qr{<div class="tweet permalink-tweet.*?".*?>.*?<p class="js-tweet-text .*?">(.*?)</p>}sio,
 	  title => 'Twitter',
 	 },
@@ -559,11 +564,11 @@ sub title_get {
 # 		}
 		if ( $target ne '' ) {
 			my %encodes = ('euc-jp' => 'euc',
-						   'shift-jis' => 'sjis',
-						   'shift_jis' => 'sjis',
-						   'x-sjis' => 'sjis',
-						   'cp932' => 'sjis',
-						   'ms932' => 'sjis',
+						   'shift-jis' => 'cp932',
+						   'shift_jis' => 'cp932',
+						   'x-sjis' => 'cp932',
+						   'cp932' => 'cp932',
+						   'ms932' => 'cp932',
 						   'iso-2022-jp' => 'jis',
 						   'iso_2022_jp' => 'jis',
                            'utf-8' => 'utf8',
@@ -585,6 +590,10 @@ sub title_get {
 		# 〜を〜の逆向きに変換することで、eucにした時に正しく見えるようにする
 		#$text =~ s/\xef\xbd\x9e/\xe3\x80\x9c/g;
 		# ダッシュ(U+FF0D)を水平線(U+2015)に
+		#$text =~ s/\x{ff0d}/\-/g;
+		$text =~ s/\xef\xbc\x8d/\-/g;
+		# http://www.ffortune.net/comp/develop/perl/from_to.htm 参照
+		$text =~ s/\xe2\x88\x92/\-/g; # SJIS full width hyphen
 		#$text =~ s/\xef\xbc\x8d/\xe2\x80\x95/g;
 		#$text =~ tr/\x{ff5e}/\x{301c}/;
 		# utf8 -> euc
