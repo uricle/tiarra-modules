@@ -590,6 +590,9 @@ sub title_get {
 		# no-break space
 		$text =~ s/&\#160;/ /g;	
 		# ucs2 -> utf8
+		$text =~ s/&\#13;&\#10;/\n/g;
+		$text =~ s/&\#13;/\n/g;
+		$text =~ s/&\#10;/\n/g;
 		$text =~ s/&\#(\d+);/ucs2_utf8(pack("N*",$1))/eg;
 		$text =~ s/&\#x([a-fA-F0-9]+);/ucs2_utf8(pack("H*",$1))/eg;
 		# delete 0x00 to 0x09, 0x0b to 0x1f
@@ -807,7 +810,7 @@ sub generic_title_get {
   }
   # ここまでに情報が得られているなら
   if( defined($heading) && $heading =~ /\S/ ) {
-    $heading =~ s/\s+/ /g;
+    #$heading =~ s/\s+/ /g;
     $heading =~ s/^\s+//;
     $heading =~ s/\s+$//;
 
