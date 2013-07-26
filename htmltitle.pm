@@ -470,7 +470,7 @@ sub message_arrived {
 				}
 				$reply_msg = substr($reply_msg, 0, 220);
 				#$reply_anywhere->(jcode($reply_msg,'euc-jp')->jis);
-				$reply_anywhere->(nkf("-E -jx",$reply_msg));
+				$reply_anywhere->($_) for split("\n", nkf("-E -jx",$reply_msg));
 			}
 		}
 	}
@@ -592,8 +592,8 @@ sub title_get {
 		# ucs2 -> utf8
 		$text =~ s/&\#(\d+);/ucs2_utf8(pack("N*",$1))/eg;
 		$text =~ s/&\#x([a-fA-F0-9]+);/ucs2_utf8(pack("H*",$1))/eg;
-		# delete 0x00 to 0x1f
-		$text =~ s/[\0-\x1f]//g;
+		# delete 0x00 to 0x09, 0x0b to 0x1f
+		$text =~ s/[\00-\x09\x0b-\x1f]//g;
 		# にょろ
 		# 〜を〜の逆向きに変換することで、eucにした時に正しく見えるようにする
 		#$text =~ s/\xef\xbd\x9e/\xe3\x80\x9c/g;
