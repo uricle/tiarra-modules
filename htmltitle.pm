@@ -312,7 +312,11 @@ sub _config
 # 		      qr{<p class="js-tweet-text .*?">(.*?)</p>}sio,
 # 		      qr{<div class="tweet-text js-tweet-text">(.*?)</div>}sio,
 # 		     ],
-	  extract => qr{<div class="tweet permalink-tweet.*?".*?>.*?<p class="js-tweet-text .*?">(.*?)</p>}sio,
+#	  extract => qr{<div class="tweet permalink-tweet.*?".*?>.*?<p class="js-tweet-text.*?">(.*?)</p>}sio,
+	  extract => [
+		      qr{<div class="tweet permalink-tweet.*?<p class="js-tweet-text .*?">(.*?)</p>}sio,
+                 qr{<p class="js-tweet-text .*?">(.*?)</p>}sio,
+                     ],
 	  title => 'Twitter',
 	 },
 	 # aion
@@ -492,7 +496,8 @@ sub title_get {
     #$ua->agent("Mozilla/4.0 (compatible; HTML title get Bot;)");
 	#$ua->agent("lwp-request/0.01");
 	#$ua->agent("Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322)");
-	$ua->agent("Mozilla/5.0 (Windows; U; Windows NT 5.1; ja; rv:1.9.2.8) Gecko/20100722 Firefox/3.6.8 (.NET CLR 3.5.30729)");
+    $ua->agent("Mozilla/5.0 (Windows; U; Windows NT 5.1; ja; rv:1.9.2.8) Gecko/20100722 Firefox/3.6.8 (.NET CLR 3.5.30729)");
+    #$ua->agent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:22.0) Gecko/20100101 Firefox/22.0 FirePHP/0.7.2");
     $ua->timeout(30);
 	# proxyがあるなら適用
     my $my_proxy = $this->config->proxy;
@@ -549,6 +554,9 @@ sub title_get {
 #		if ( $res->content =~ /<meta\s+http-equiv=\"content-type\".*?content=\"text\/html;\s*charset\s*=\s*?([^\"]+)\">/mio ) {
 		#my $content = $res->content;;
 		my $content = $res->decoded_content;
+# 		open my $TEMP, ">test.html";
+# 		print $TEMP $content;
+# 		close $TEMP;
 #  		if ( $res->header('Content-Encoding') =~ /^(gzip|deflate)$/ ) {
 #  			$content = Compress::Zlib::memGunzip($content);
 #  		}
