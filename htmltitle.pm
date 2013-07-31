@@ -593,6 +593,8 @@ sub title_get {
 		$text =~ s/&\#13;&\#10;/\n/g;
 		$text =~ s/&\#13;/\n/g;
 		$text =~ s/&\#10;/\n/g;
+		$text =~ s/\n+/\n/g;
+		$text =~ s/\n$//;
 		$text =~ s/&\#(\d+);/ucs2_utf8(pack("N*",$1))/eg;
 		$text =~ s/&\#x([a-fA-F0-9]+);/ucs2_utf8(pack("H*",$1))/eg;
 		# delete 0x00 to 0x09, 0x0b to 0x1f
