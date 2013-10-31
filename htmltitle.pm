@@ -831,7 +831,7 @@ sub generic_title_get {
 sub HTMLTitle_Get {
     my ($text) = shift;
     my $string;
-    if ( $$text =~ m|<title[^>]*>(.+?)</title>|im ) {
+    if ( $$text =~ m|<title[^>]*>(.+?)</title>|ims ) {
 		$string = $1;
 		$string =~ s/[\r\n]//g;
 		$string =~ s/\s+/ /g;
