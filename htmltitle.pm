@@ -561,9 +561,9 @@ sub title_get {
 #  			$content = Compress::Zlib::memGunzip($content);
 #  		}
 		my $header = $res->header('Content-Type');
-# 		if ( $header =~ /.+?\/.+?;\s*charset\s*=\s*([a-zA-Z0-9\-_]+),?/io ) {
-# 			$target = $1;
-# 		}
+ 		if ( $header =~ /.+?\/.+?;\s*charset\s*=\s*([a-zA-Z0-9\-_]+),?/io ) {
+		  $target = $1;
+		}
 # 		if ( $target eq '' && $content =~ /<(\s*meta\s+[^>]*?http-equiv=\"content-type\".+?)>/mio ) {
 #             my $metatag = $1;
 # 			# (auto/meta http-equiv="content-type" content="text/html; charset=euc-jp" /) 
@@ -586,7 +586,12 @@ sub title_get {
 				$encode = $encodes{$target};
 			}
 		}
-		my $text = Unicode::Japanese->new($content,$encode)->utf8;
+		my $text = "";
+		if ( $encode ne 'utf8' ) {
+		  $text = Unicode::Japanese->new($content,$encode)->utf8;
+		} else {
+		  $text = $content;
+		}
 		# no-break space
 		$text =~ s/&\#160;/ /g;	
 		# ucs2 -> utf8
@@ -618,6 +623,7 @@ sub title_get {
 		$ret ||= Amazon_Get( $this, $requesturl, \$text );
         $ret ||= generic_title_get($this, $string, \$text);
 		$ret ||= HTMLTitle_Get(\$text);
+		#$ret = "$header:$encode:$ret";
 # for debug
 		#$ret = $res->content_type . " $ret";
 		#$ret = "($encode/$target) " . $ret;
