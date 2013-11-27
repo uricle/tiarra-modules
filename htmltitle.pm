@@ -366,6 +366,11 @@ sub _config
       separator => ':',
       title => 'DQX ËÁ¸±¼Ô¤Î¹­¾ì',
      },
+     # dqx news
+     {
+      url    => 'http://hiroba.dqx.jp/sc/news/*',
+      extract => qr{<h3 class="iconTitle">(.*?)</h3>},
+     },
     ];
   $config;
 }
@@ -571,7 +576,7 @@ sub title_get {
 # 			$target = $1;
 # 		}
 		if ( $target ne '' ) {
-			my %encodes = ('euc-jp' => 'euc',
+			my %encodes = ('euc-jp' => 'eucjp',
 						   'shift-jis' => 'cp932',
 						   'shift_jis' => 'cp932',
 						   'x-sjis' => 'cp932',
@@ -585,10 +590,13 @@ sub title_get {
 			if ( exists $encodes{$target} ) {
 				$encode = $encodes{$target};
 			}
+			$encode = 'sjis' if $encode eq 'cp932';
 		}
 		my $text = "";
 		if ( $encode ne 'utf8' ) {
-		  $text = Unicode::Japanese->new($content,$encode)->utf8;
+		  #$text = Encode::decode($encode, $content);
+		  $text = Encode::encode('utf8', $content);
+		  #$text = Unicode::Japanese->new($content,$encode)->utf8;
 		} else {
 		  $text = $content;
 		}
