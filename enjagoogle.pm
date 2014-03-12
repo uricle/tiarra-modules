@@ -95,7 +95,7 @@ sub google_translate {
     my $ua = LWP::UserAgent->new;
     $ua->agent("Mozilla/4.0 (compatible; Translate Bot;)");
     $ua->timeout(10);
-    my $requesturl = 'http://translate.google.co.jp/translate_t';
+    my $requesturl = 'http://translate.google.co.jp/';
     my %formdata = ('text' => jcode($string)->utf8,
 					'ie' => 'UTF-8',
 					'oe' => 'UTF-8',
