@@ -46,7 +46,7 @@ sub message_arrived {
 		my $reply_bing;
 		my $my_alias = jcode($this->config->nick)->euc;
 		if ( $param1 =~ /^(?:下条|毖下)\s*(.*)(?:′|>)(?:$my_nick|$my_alias)$/ ) {
-			$reply_msg = google_translate( "", $1, 'auto','ja' );
+			$reply_msg = google_translate( "", $1, 'en','ja' );
 			$reply_excite = excite_translate( "", $1, 'ENJA' );
 		}
 		if ( $param1 =~ /^(?:毖条|下毖)\s*(.*)(?:′|>)(?:$my_nick|$my_alias)$/ ) {
@@ -67,6 +67,10 @@ sub message_arrived {
 		}
 		if ( $param1 =~ /^(?:面条|下面)\s*(.*)(?:′|>)(?:$my_nick|$my_alias)$/ ) {
 			$reply_msg = google_translate( "", $1, 'ja','zh-TW' );
+			$reply_excite = "";
+		}
+		if ( $param1 =~ /^(?:八条|下八)\s*(.*)(?:′|>)(?:$my_nick|$my_alias)$/ ) {
+			$reply_msg = google_translate( "", $1, 'ja','it' );
 			$reply_excite = "";
 		}
 		if ( $reply_msg ne "" ) {
@@ -95,13 +99,14 @@ sub google_translate {
     my $ua = LWP::UserAgent->new;
     $ua->agent("Mozilla/4.0 (compatible; Translate Bot;)");
     $ua->timeout(10);
-    my $requesturl = 'http://translate.google.co.jp/';
-    my %formdata = ('text' => jcode($string)->utf8,
-					'ie' => 'UTF-8',
-					'oe' => 'UTF-8',
-					'sl' => $sl,
-					'tl' => $tl,
-				   );
+    my $requesturl = 'https://translate.google.com/';
+    my %formdata = (
+		    'text' => jcode($string)->utf8,
+		    'ie' => 'UTF-8',
+		    'oe' => 'UTF-8',
+		    'sl' => $sl,
+		    'tl' => $tl,
+		   );
     my $request  = POST($requesturl, [%formdata]);
     my $res = $ua->request($request);
     my $preface =  '<span id=result_box[^>]+>';
