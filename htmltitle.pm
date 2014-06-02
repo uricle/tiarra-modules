@@ -306,7 +306,7 @@ sub _config
 	 },
 	 # twitter
 	 {
-	  url     => 're:https?://twitter.com/.*',
+	  url     => 're:https?://(?:mobile.)?twitter.com/.*',
 	  #extract => qr{<p class="js-tweet-text.*?">(.*?)</p>}sio,
 # 	  extract => [
 # 		      qr{<p class="js-tweet-text .*?">(.*?)</p>}sio,
@@ -511,6 +511,7 @@ sub title_get {
     }
     my $requesturl = $string;
 	# twitter用特殊
+	$requesturl =~ s|https?://(?:mobile.)?(twitter.com)|https://$1|o;
 	$requesturl =~ s|(twitter\.com/)\#!/|$1|o;
 	# $ret を戻り値とする。空で返せば返事無し
     my $ret;
