@@ -48,6 +48,7 @@ use HTML::HeadParser;
 use File::Temp qw(tempfile);
 use Unicode::Japanese;
 use NKF;
+use IO::Socket::SSL;
 # --------------------------------------
 sub new {
 	my $class = shift;
@@ -58,6 +59,10 @@ sub new {
 	$this->{assocID} = ();
 	$this->{oldassoc} = "";
 	$this->_init;
+	@{$this->{channels}} = $this->config->channel('all');
+	$this->{localname} = $this->config->localname;
+	$this->{ua} = $this->config->ua;
+	$this->{proxy} + $this->config->proxy;
 	return $this;
 }
 
@@ -216,25 +221,27 @@ sub _config
      },
      {
       # 27. nintendo.
-      url        => 'http://www.nintendo.co.jp/corporate/release/*',
-      extract    => qr{<DIV CLASS="title">(.*?)</DIV>}s,
+      url        => 're:https?://www.nintendo.co.jp/corporate/release/.*',
+      extract    => qr{<h1 id="nr_title">(.*?)</h1>}sio,
+      title => 'nintendo',
+      remove => qr{\s{2,}}sio,
      },
-	 # bnn-s
-	 {
-		url => 'http://www.bnn-s.com/*',
-		extract => qr{<div\s+class=\"detailTitle\">([^<]+)\s*<\/}s,
-		title => '[BNN]',
-	 },
-	 # zakzak
-	 {
-	  url     => 'http://www.zakzak.co.jp/*',
-	  extract => [
-				  qr{<!--midashi-->([^<]+)}sio,
-				  qr{<font\s+class=\"kijimidashi\"\s+size=\"\d+\">(.+?)<\/font}sio,
-				  qr{<div class="titleArea">(.*?)</div>}mio,
-				 ],
+     # bnn-s
+     {
+      url => 'http://www.bnn-s.com/*',
+      extract => qr{<div\s+class=\"detailTitle\">([^<]+)\s*<\/}s,
+      title => '[BNN]',
+     },
+     # zakzak
+     {
+      url     => 'http://www.zakzak.co.jp/*',
+      extract => [
+		  qr{<!--midashi-->([^<]+)}sio,
+		  qr{<font\s+class=\"kijimidashi\"\s+size=\"\d+\">(.+?)<\/font}sio,
+		  qr{<div class="titleArea">(.*?)</div>}mio,
+		 ],
       remove  => qr{<[^>]+?>},
-	 },
+     },
 	 # doshin
 # 	 {
 # 	  url     => 'http://www.hokkaido-np.co.jp/*',
@@ -273,18 +280,6 @@ sub _config
 	  extract => qr{<h1.*?>(.*?)<\/h1>.*?<dd>(.*?)<br><br>},
 	  separator => '：',
 	 },
-	 # amazon
-# 	 {
-# 	  url     => 'http://www.amazon.co.jp/*',
-# 	  extract => [
-# 				  qr{<span\s+id="?btAsinTitle"?>(.*?)</span>.*?<b\s+class="?priceLarge"?>(.*?)</b>}mio,
-# 				  qr{<span\s+id="?btAsinTitle"?>(.*?)</span>.*?<span\s+class="?priceLarge"?>(.*?)</span>}mio,
-# 				  qr{<span\s+id="?btAsinTitle"?>(.*?)</span>.*?<b\s+class="?price"?>(.*?)</b>}mio,
-# 				  qr{<span\s+id="?btAsinTitle"?>(.*?)</span>.*?<span\s+class="?price"?>(.*?)</span>}mio,
-# 				 ],
-# 	  remove  => qr{（税込）},
-# 	  separator => ' ',
-# 	 },
 	 # impress test
 # 	 {
 # 	  url  => 'http://pc.watch.impress.co.jp/docs/*',
@@ -305,7 +300,7 @@ sub _config
 				 ],
 	 },
 	 # twitter
-	 {
+     {
 	  url     => 're:https?://(?:mobile.)?twitter.com/.*',
 	  #extract => qr{<p class="js-tweet-text.*?">(.*?)</p>}sio,
 # 	  extract => [
@@ -314,11 +309,20 @@ sub _config
 # 		     ],
 #	  extract => qr{<div class="tweet permalink-tweet.*?".*?>.*?<p class="js-tweet-text.*?">(.*?)</p>}sio,
 	  extract => [
-		      qr{<div class="tweet permalink-tweet.*?<p class="js-tweet-text .*?">(.*?)</p>}sio,
+#		      qr{<div class="tweet permalink-tweet.*?<p class="js-tweet-text .*?">(.*?)</p>}sio,
+		      qr{<p class="TweetTextSize\s*TweetTextSize.*?>(.*?)</p>}sio,
                  qr{<p class="js-tweet-text .*?">(.*?)</p>}sio,
                      ],
 	  title => 'Twitter',
 	 },
+     {
+      url => 're:https?://mstdn.jp\/.*',
+      extract => [
+		  qr{<meta content='([^<>]+?)'\sproperty='og:description'}sio,
+		  qr{div class='status__content p\-name emojify'>(.*?)</div>}sio
+		 ],
+      title => 'mstdn',
+     },
 	 # aion
 	 {
 	  url     => 'http://aion.plaync.jp/board/*',
@@ -359,6 +363,10 @@ sub _config
       url     => 'http://instagr.am/p/*',
       extract => qr{<div class="caption">(.*?)</div>}sio,
      },
+     {
+      url     => 'https://www.instagram.com/p/*',
+      extract => qr{meta content="(.*?)" name}sio,
+     },
      # dqx hiroba
      {
       url    => 'http://hiroba.dqx.jp/sc/forum/*',
@@ -370,6 +378,11 @@ sub _config
      {
       url    => 'http://hiroba.dqx.jp/sc/news/*',
       extract => qr{<h3 class="iconTitle">(.*?)</h3>},
+     },
+     # 47news FN
+     {
+      url   => 'http://www.47news.jp/FN/*',
+      extract => qr{<meta name="description" content="(.*?)"\s*/>}sio,
      },
     ];
   $config;
@@ -409,76 +422,103 @@ sub message_arrived {
 #      }
     # PRIVMSGか？
     if ($msg->command eq 'PRIVMSG') {
-		my $my_nick;
-		if ($sender->isa('IrcIO::Client')) {
-			$my_nick = $msg->param(0);
-		} else {
-			$my_nick = $sender->current_nick;
-		}
-		my ($get_ch_name,undef,undef,$reply_anywhere)
-		  = Auto::Utils::generate_reply_closures($msg,$sender,\@result);
-		# replyに設定されたものの中から、一致しているものがあれば発言。
-		# 一致にはMask::matchを用いる。
-		# 	    foreach ($this->config->reply('all')) {
-		# 		my ($mask,$reply_msg) = m/^(.+?)\s+(.+)$/;
-		# 		if (Mask::match($mask,$msg->param(1))) {
-		# 		    # 一致していた。
-		# 		    $reply_anywhere->($reply_msg);
-		# 		}
-		# 	    }
-		my $chmatch = 0;
-		#print STDERR "param0 " . $msg->param(0) . "\n";
-# 		foreach ( @{$this->{channels}} ) {
-# 		  #if ( $msg->param(0) eq $_ ) {
-# 		  if ( $msg->param(0) =~ /^$_$/i ) {
-# 		    $chmatch = 1;
-# 		    last;
-# 		  }
-# 		}
-		$chmatch = Mask::match_deep([$this->config->channel('all')],$msg->param(0));
-		if ( $chmatch ) {
-		  #my $param1 = jcode($msg->param(1))->euc;
-		  my $param1 = nkf("-ex", $msg->param(1));
-			#print STDERR "param1 $param1\n";
-			my $reply_msg;
-			if ( $param1 =~ /(https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:\@&=+\$,%\#]+)/o ) {
-				$reply_msg = title_get( $this, $1 );
-				$this->{NoticeReceived} = 0;
-			}
-			if ( $reply_msg ne "" ) {
-				my %entities = (
-								'nbsp' => ' ',
-								'iexcl' => 'i',
-								# 'cent' => 'c', # cent sign
-								# 'pound' => 'pound',	# pound sign
-								# 'curren' => '',	# currency sign
-								# 'yen' => '\\', # yen sign
-								# 'brvbar' => '|', # broken vertical ber
-								# 'sect' => 'S', # section sign
-								# 'uml' => '..', # spacing diaeresis
-								'copy' => '(C)', # copyright sign
-								# 'ordf' => 'a', # feminine ordinal indicator
-								'laquo' => '<<', # eft pointing guillemet
-								# 'not' => 'not',	# not sign
-								# 'shy' => '-', # soft hyphen
-								'reg' => '(R)',	# registered sign
-								# 'macr' => '~', # macron
-								# 'deg' => '', # degree sign
-								'raquo' => '>>',
-								'amp' => '&',
-								'quot' => '"',  # quote
-						'ldquo' => '「',
-						'rdquo' => '」',
-							   );
-				foreach my $entity (keys %entities) {
-					$reply_msg =~ s/&$entity;/$entities{$entity}/g;
-				}
-				$reply_msg = substr($reply_msg, 0, 220);
-				#$reply_anywhere->(jcode($reply_msg,'euc-jp')->jis);
-				$reply_anywhere->($_) for split("\n", nkf("-E -jx",$reply_msg));
-			}
-		}
+      my $my_nick;
+      if ($sender->isa('IrcIO::Client')) {
+	$my_nick = $msg->param(0);
+      } else {
+	$my_nick = $sender->current_nick;
+      }
+      my ($get_ch_name,undef,undef,$reply_anywhere)
+	= Auto::Utils::generate_reply_closures($msg,$sender,\@result);
+      # replyに設定されたものの中から、一致しているものがあれば発言。
+      # 一致にはMask::matchを用いる。
+      # 	    foreach ($this->config->reply('all')) {
+      # 		my ($mask,$reply_msg) = m/^(.+?)\s+(.+)$/;
+      # 		if (Mask::match($mask,$msg->param(1))) {
+      # 		    # 一致していた。
+      # 		    $reply_anywhere->($reply_msg);
+      # 		}
+      # 	    }
+      my $chmatch = 0;
+      #print STDERR "param0 " . $msg->param(0) . "\n";
+      # 		foreach ( @{$this->{channels}} ) {
+      # 		  #if ( $msg->param(0) eq $_ ) {
+      # 		  if ( $msg->param(0) =~ /^$_$/i ) {
+      # 		    $chmatch = 1;
+      # 		    last;
+      # 		  }
+      # 		}
+      $chmatch = Mask::match_deep([@{$this->{channels}}],$msg->param(0));
+      if ( $chmatch ) {
+	#my $param1 = jcode($msg->param(1))->euc;
+	my $param1 = $msg->param(1);#nkf("-ex", $msg->param(1));
+	#print STDERR "param1 $param1\n";
+	my $reply_msg;
+	if ( $param1 =~ /(https?:\/\/[-_.!~*\'()a-zA-Z0-9;\/?:\@&=+\$,%\#]+)/o ) {
+	  #print STDERR "fetch:$param1\n";
+	  $reply_msg = title_get( $this, $1 );
+	  #print STDERR "$reply_msg\n";
+	  $this->{NoticeReceived} = 0;
 	}
+	if ( $reply_msg ne "" ) {
+	  my %entities = (
+			  'nbsp' => ' ',
+			  'iexcl' => 'i',
+			  # 'cent' => 'c', # cent sign
+			  # 'pound' => 'pound',	# pound sign
+			  # 'curren' => '',	# currency sign
+			  # 'yen' => '\\', # yen sign
+			  # 'brvbar' => '|', # broken vertical ber
+			  # 'sect' => 'S', # section sign
+			  # 'uml' => '..', # spacing diaeresis
+			  'copy' => '(C)', # copyright sign
+			  # 'ordf' => 'a', # feminine ordinal indicator
+			  'laquo' => '<<', # eft pointing guillemet
+			  # 'not' => 'not',	# not sign
+			  # 'shy' => '-', # soft hyphen
+			  'reg' => '(R)',	# registered sign
+			  # 'macr' => '~', # macron
+			  # 'deg' => '', # degree sign
+			  'raquo' => '>>',
+			  'amp' => '&',
+			  'quot' => '"',  # quote
+			  'ldquo' => '「',
+			  'rdquo' => '」',
+			  'gt' => '>',
+			  'lt' => '<',
+			 );
+	  foreach my $entity (keys %entities) {
+	    $reply_msg =~ s/&$entity;/$entities{$entity}/g;
+	  }
+	  my $ascii = '[\x00-\x7f]';
+	  my $twoBytes = '[\x8E\xA1-\xFE][\xA1-\xFE]';
+	  my $threeBytes = '\x8F[\xA1-\xFE][\xA1-\xFE]';
+	  my @chars = $reply_msg =~ /$ascii|$twoBytes|$threeBytes/og;
+	  #my @reply_array = $reply_msg =~ /.{1,220}/g;
+	  my @reply_array;
+	  my $cnt = 0;
+	  my $pos = 0;
+	  foreach (@chars) {
+	    if ( $_ eq "\n" ) {
+	      $cnt = 0;
+	      $pos++; next;
+	    }
+	    $reply_array[$pos] .= $_;
+	    $cnt += 3 if ( /$threeBytes/ );
+	    $cnt += 2 if ( /$twoBytes/ );
+	    $cnt += 1 if ( /$ascii/ );
+	    if ( $cnt >= 220 ) {
+	      $cnt = 0;
+	      $pos++;
+	    }
+	  }
+	  $reply_msg = join("\n", @reply_array);
+	  #$reply_msg = substr($reply_msg, 0, 220);
+	  #$reply_anywhere->(jcode($reply_msg,'euc-jp')->jis);
+	  $reply_anywhere->($_) for split("\n", nkf("-E -wx",$reply_msg));
+	}
+      }
+    }
     return @result;
 }
 
@@ -490,22 +530,40 @@ sub title_get {
 		return undef if ($_ && $string =~ /($_)/i );
     }
 	# localhostに変換するべきか
-	my $localname = $this->config->localname;
+	my $localname = $this->{localname};#$this->config->localname;
 	if ( $localname ne "" ) {
 		if ( $string =~ m|https?://$localname| ) {
 			$string =~ s/$localname/localhost/;
 		}
 	}
 	# UA 作成
+    IO::Socket::SSL::set_ctx_defaults( 
+     				      SSL_verifycn_scheme => 'none',
+    				      SSL_verify_mode => 0,
+    				     );
+    # IO::Socket::SSL::set_ctx_defaults( 
+    #  				      SSL_verifycn_scheme => 'http',
+    # 				      SSL_verify_mode => 1,
+    # 				     );
     my $ua = LWP::UserAgent->new;
+    $ua->ssl_opts(verify_hostname => 0);
     #$ua->agent("Mozilla/4.0 (compatible; HTML title get Bot;)");
 	#$ua->agent("lwp-request/0.01");
 	#$ua->agent("Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1; .NET CLR 1.1.4322)");
-    $ua->agent("Mozilla/5.0 (Windows; U; Windows NT 5.1; ja; rv:1.9.2.8) Gecko/20100722 Firefox/3.6.8 (.NET CLR 3.5.30729)");
+    #$ua->agent("Mozilla/5.0 (Windows; U; Windows NT 5.1; ja; rv:1.9.2.8) Gecko/20100722 Firefox/3.6.8 (.NET CLR 3.5.30729)");
+    #$ua->agent("Mozilla/4.0");
+    my $UserAgent = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:22.0) Gecko/20100101 Firefox/22.0";
+    #$UserAgent = $this->config->ua if defined $this->config->ua;
+    $UserAgent = $this->{ua} if defined $this->{ua};
+    $ua->agent($UserAgent);
+    #print STDERR "'$UserAgent'";
     #$ua->agent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:22.0) Gecko/20100101 Firefox/22.0 FirePHP/0.7.2");
     $ua->timeout(30);
+    $ua->cookie_jar({});
+    #print STDERR "UserAgent->new\n";
 	# proxyがあるなら適用
-    my $my_proxy = $this->config->proxy;
+    #my $my_proxy = $this->config->proxy;
+    my $my_proxy = $this->{proxy};
     if ( $my_proxy ne "" ) {
 		$ua->proxy(['http','ftp'], $my_proxy);
     }
@@ -518,7 +576,7 @@ sub title_get {
 	#$ret = $requesturl;
 	# URLだけでわかるものは先に処理
     $ret ||= WikiPedia_Get( $requesturl );
-	$ret ||= SearchEngine_Get( $requesturl );
+    $ret ||= SearchEngine_Get( $requesturl );
     if ( $ret ne "" ) {
 		return $ret;
     }
@@ -529,18 +587,30 @@ sub title_get {
 		# recv_limit (byte)
 		if ( exists $conf->{recv_limit} ) {
 			$ua->max_size( $conf->{recv_limit} );
+			#print STDERR "UserAgent->max_size $conf->{recv_limit}\n";
 		}
 		# timeout (sec)
 		if ( exists $conf->{timeout} ) {
 			$ua->timeout( $conf->{timeout} );
+			#print STDERR "UserAgent->timeout $conf->{timeout}\n";
 		}
 	}
 	# HTTP request
     #my $request  = GET($requesturl);
     #my $res = $ua->request($request);
-	my $res = $ua->request(HEAD $requesturl);
+    #print STDERR "ua->request: $requesturl\n";
+    # my $req = HTTP::Request->new('HEAD');
+    # $req->uri($requesturl);
+    # 	my $res = $ua->request($req);
+    my $res = $ua->head($requesturl);
 	# $ret = "$requesturl " . $res->content_type . $res->code;
 	# content type check
+    #print STDERR "content_type: $res->content_type\n";
+    # open my $TEMP, ">test.html";
+    # my $content = $res->decoded_content;
+    # print $TEMP $res->content_type . "\n";
+    # print $TEMP $content;
+    # close $TEMP;
     if ( $res->content_type =~ /image/io ) {
 		my $content_length = $res->content_length;
 		$ua->max_size( 64 * 1024 );
@@ -552,20 +622,26 @@ sub title_get {
 		my ( $format, $width, $height ) = &GetImageSize( $filename);
 		$ret = "$format (${width}x${height} pixels, ".$content_length." bytes)";
 		unlink($filename);
-    } elsif ( $res->content_type =~ /text\/(?:ht|x)ml/o ) {
-		$res = $ua->request(GET $requesturl, 'Accept-Encoding' => 'gzip,deflate');
+	      } elsif ( $res->content_type =~ /text\/plain/ && $res->code == '500' ) {
+		$ret = $res->decoded_content;
+		$ret =~ s/[\r\n]/ /g;
+    } elsif ( $res->content_type =~ /text\/(?:(?:ht|x)ml|x-web-textile)/o || $res->code == '405') {
+      $res = $ua->request(GET $requesturl);
+      #$res = $ua->request(GET $requesturl, 'Accept-Encoding' => 'gzip,deflate');
+		#print STDERR "retry end\n";
 		#$ret = "$requesturl " . $res->content_type . $res->code;
 		my $encode = 'auto';
 		my $target = '';
 #		if ( $res->content =~ /<meta\s+http-equiv=\"content-type\".*?content=\"text\/html;\s*charset\s*=\s*?([^\"]+)\">/mio ) {
 		#my $content = $res->content;;
 		my $content = $res->decoded_content;
-# 		open my $TEMP, ">test.html";
-# 		print $TEMP $content;
-# 		close $TEMP;
+ 		# open my $TEMP, ">test.html";
+ 		# print $TEMP $content;
+ 		# close $TEMP;
 #  		if ( $res->header('Content-Encoding') =~ /^(gzip|deflate)$/ ) {
 #  			$content = Compress::Zlib::memGunzip($content);
 #  		}
+		#print STDERR "check content header ; ".$res->header('Content-Type')."\n";
 		my $header = $res->header('Content-Type');
  		if ( $header =~ /.+?\/.+?;\s*charset\s*=\s*([a-zA-Z0-9\-_]+),?/io ) {
 		  $target = $1;
@@ -596,11 +672,13 @@ sub title_get {
 		my $text = "";
 		if ( $encode ne 'utf8' ) {
 		  #$text = Encode::decode($encode, $content);
+		  #print STDERR "Encode::encode\n";
 		  $text = Encode::encode('utf8', $content);
 		  #$text = Unicode::Japanese->new($content,$encode)->utf8;
 		} else {
 		  $text = $content;
 		}
+      #print STDERR "replace &*;\n";
 		# no-break space
 		$text =~ s/&\#160;/ /g;	
 		# ucs2 -> utf8
@@ -625,13 +703,21 @@ sub title_get {
 		#$text =~ tr/\x{ff5e}/\x{301c}/;
 		# utf8 -> euc
 		#Encode::from_to($text, 'utf-8', 'euc-jp');
+      #print STDERR "encode cp932\n";
 		my $encoded = encode('cp932', decode_utf8($text));
 		$text = encode('euc-jp', decode('shift_jis', $encoded));
 		#my $encoded = encode('euc-jp', $text);
 		#$text = $encoded;
+      #print STDERR "Amazon_get\n";
+      $ret ||= Mainichi_Get( $this, $requesturl, \$text, $ua );
 		$ret ||= Amazon_Get( $this, $requesturl, \$text );
+      #print STDERR "generic_get\n";
         $ret ||= generic_title_get($this, $string, \$text);
+      #print STDERR "HTMLTITle_get\n";
 		$ret ||= HTMLTitle_Get(\$text);
+		# open my $DEBUG, ">debug.txt";
+		# print $DEBUG $text;
+		# close $DEBUG;
 		#$ret = "$header:$encode:$ret";
 # for debug
 		#$ret = $res->content_type . " $ret";
@@ -641,6 +727,7 @@ sub title_get {
 		# 知らないcontent-typeの場合は、それを返事にする
 		$ret = $res->content_type;
     }
+    #print STDERR "End : $ret\n";
     return $ret;
 }
 sub GetDecoder {
@@ -691,7 +778,7 @@ sub utf8_to_euc
 # wikipedia 
 sub WikiPedia_Get {
 	my ($url) = shift;
-	if ( $url =~ m|http://ja.wikipedia.org/wiki/(.*)|io ) {
+	if ( $url =~ m|https?://ja.wikipedia.org/wiki/(.*)|io ) {
 		my $text = $1;
 		$text =~ s/[%\.]([a-fA-F0-9]{2})/pack("C", hex($1))/eg;
 		$text = jcode($text,'utf8')->euc;
@@ -721,39 +808,52 @@ sub SearchEngine_Get {
 	undef;
 }
 
+# mainichi / openid
+sub Mainichi_Get {
+  my ( $this, $url, $text, $ua) = @_;
+  if ($text =~ /input\stype=.+?name="openid\.return_to"\s+value=".+?url=(.+?)"/mi ) {
+    my $next = $1;
+    $next =~ s/\+/ /g;
+    $next =~ s/%([0-9a-fA-F]{2})/pack("H2",$1)/eg;
+    $$text = $ua->request(GET $next)->decoded_content;
+  }
+  undef;
+}
+
 # amazon 
 sub Amazon_Get {
-	my ( $this, $url, $text) = @_;
-	if ( $url =~ m|^http://www.amazon.co.jp/.*?([4B][A-Z0-9]{9})| ) {
-		# 既に埋まっている場合は加工しない
-		#return undef if ( $url =~ /-22\W/ );
-		my $ASIN = $1;
-		my $name;
-		if ( $$text =~ /<span\s+id=\"?btAsinTitle\"?.*?>(.*?)<\/span>/mio ) {
-			$name = $1;
-			$name =~ s/<[^<]+>//g;
-		}
-		$name ||= HTMLTitle_Get($text);
-		my $assoc = $this->{oldassoc};
-		while ( $assoc eq $this->{oldassoc} ) {
-			$assoc = @{$this->{assocID}}[ int ( ((rand (($#{$this->{assocID}}+1)<<4)) >> 4)) ];
-		}
-		$this->{oldassoc} = $assoc;
-		# 頻度チェック
-# 		my $rndex;
-#  		my @ctr;
-#  		for ( my $i = 0; $i < 2000; $i++ ) {
-#  			$ctr[ int ( ((rand (($#{$this->{assocID}}+1)<<4) )>>4) ) ] ++;
-#  		}
-#  		for ( my $i = 0; $i <= $#{$this->{assocID}}; $i++ ) {
-#  			$rndex .= @{$this->{assocID}}[ $i ] . "(" . $ctr[ $i ] . ") ";
-#  		}
-		#my $newurl = "http://www.amazon.co.jp/exec/obidos/ASIN/$ASIN/$assoc/ref=nosim/";
-		my $newurl = "http://amazon.jp/dp/$ASIN?tag=$assoc";
-		#my $newurl = $rndex;
-		return "$name ($newurl)";
-	}
-	undef;
+  my ( $this, $url, $text) = @_;
+  #print STDERR "Amazon_Get\n";
+  if ( $url =~ m|^https?://www.amazon.co.jp/.*?([4B][A-Z0-9]{9})| ) {
+    # 既に埋まっている場合は加工しない
+    #return undef if ( $url =~ /-22\W/ );
+    my $ASIN = $1;
+    my $name;
+    #print STDERR "HTMLTitle_get\n";
+    $name ||= HTMLTitle_Get($text);
+    # print STDERR $name;
+    my $assoc = $this->{oldassoc};
+    #print STDERR "Choose assoc\n";
+    while ( $assoc eq $this->{oldassoc} ) {
+      $assoc = @{$this->{assocID}}[ int ( ((rand (($#{$this->{assocID}}+1)<<4)) >> 4)) ];
+    }
+    #print STDERR "$assoc\n";
+    $this->{oldassoc} = $assoc;
+    # 頻度チェック
+    # 		my $rndex;
+    #  		my @ctr;
+    #  		for ( my $i = 0; $i < 2000; $i++ ) {
+    #  			$ctr[ int ( ((rand (($#{$this->{assocID}}+1)<<4) )>>4) ) ] ++;
+    #  		}
+    #  		for ( my $i = 0; $i <= $#{$this->{assocID}}; $i++ ) {
+    #  			$rndex .= @{$this->{assocID}}[ $i ] . "(" . $ctr[ $i ] . ") ";
+    #  		}
+    #my $newurl = "http://www.amazon.co.jp/exec/obidos/ASIN/$ASIN/$assoc/ref=nosim/";
+    my $newurl = "http://amazon.jp/dp/$ASIN?m=AN1VRQENFRJN5&tag=$assoc";
+    #my $newurl = $rndex;
+    return "$name ($newurl)";
+  }
+  undef;
 }
 
 # ExtractHeading::filter_response っぽいもの
@@ -762,7 +862,6 @@ sub generic_title_get {
   my $extract_list = $this->_config();
 
   my $heading;
-
   my $overwrite_title = "";
   foreach my $conf (@$extract_list) {
     Mask::match($conf->{url}, $url) or next;
@@ -846,6 +945,7 @@ sub generic_title_get {
 sub HTMLTitle_Get {
     my ($text) = shift;
     my $string;
+    $$text =~ s/<\!--.+?-->//g;
     if ( $$text =~ m|<title[^>]*>(.+?)</title>|ims ) {
 		$string = $1;
 		$string =~ s/[\r\n]//g;
