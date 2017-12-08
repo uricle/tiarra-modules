@@ -49,6 +49,7 @@ use File::Temp qw(tempfile);
 use Unicode::Japanese;
 use NKF;
 use IO::Socket::SSL;
+use HTTP::Message;
 # --------------------------------------
 sub new {
 	my $class = shift;
@@ -556,6 +557,8 @@ sub title_get {
     #$UserAgent = $this->config->ua if defined $this->config->ua;
     $UserAgent = $this->{ua} if defined $this->{ua};
     $ua->agent($UserAgent);
+    my $accept = HTTP::Message::decodable;
+    $ua->default_header('Accept-Encoding' => $accept);
     #print STDERR "'$UserAgent'";
     #$ua->agent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:22.0) Gecko/20100101 Firefox/22.0 FirePHP/0.7.2");
     $ua->timeout(30);
