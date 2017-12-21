@@ -674,16 +674,15 @@ sub title_get {
 			$encode = 'sjis' if $encode eq 'cp932';
 		}
 		my $text = "";
-		if ( $encode ne 'utf8' ) {
-		  #$text = Encode::decode($encode, $content);
-		  #print STDERR "Encode::encode\n";
+#		if ( $encode ne 'utf8' ) {
+#		  $text = Encode::encode('utf8', $content);
+#		} else {
 		  $text = Encode::encode('utf8', $content);
-		  #$text = Unicode::Japanese->new($content,$encode)->utf8;
-		} else {
-		  $text = $content;
-		}
-                $text = NFC($text);
-      #print STDERR "replace &*;\n";
+#		}
+      my $decoded = Encode::decode('utf8', $text);
+      #if ( checkNFD($decoded) ) {
+      $text = Encode::encode('utf8', NFC($decoded));
+      #}
 		# no-break space
 		$text =~ s/&\#160;/ /g;	
 		# ucs2 -> utf8
