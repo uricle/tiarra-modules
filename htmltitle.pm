@@ -47,6 +47,7 @@ use HTTP::Request::Common;# qw(GET HEAD);
 use HTML::HeadParser;
 use File::Temp qw(tempfile);
 use Unicode::Japanese;
+use Unicode::Normalize;
 use NKF;
 use IO::Socket::SSL;
 use HTTP::Message;
@@ -681,6 +682,7 @@ sub title_get {
 		} else {
 		  $text = $content;
 		}
+                $text = NFC($text);
       #print STDERR "replace &*;\n";
 		# no-break space
 		$text =~ s/&\#160;/ /g;	
