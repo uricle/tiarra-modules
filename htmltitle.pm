@@ -386,6 +386,11 @@ sub _config
       url   => 'http://www.47news.jp/FN/*',
       extract => qr{<meta name="description" content="(.*?)"\s*/>}sio,
      },
+     # youtube
+     {
+      url   => 'https://www.youtube.com/watch*',
+      extract => qr{document.title\s*=\s*\"(.+?)(?:\s+-\s+YouTube)?\"}io,
+     },
     ];
   $config;
 }
