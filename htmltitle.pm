@@ -391,9 +391,11 @@ sub _config
       url   => 'https://www.youtube.com/watch*',
       extract => qr{document.title\s*=\s*\"(.+?)(?:\s+-\s+YouTube)?\"}io,
      },
+     # dqx shop
      {
       url   => 'http://hiroba.dqx.jp/sc/shop/item*',
-      extract => qr{<div class="shop-headline-detail">.*?<li>.*?</li>.*?<li>(.+?)</li>}sio,
+      extract => qr{<div class="shop-headline-detail">.*?<li>.*?</li>.*?<li>(.+?)</li>.*?<div id="itemdetail-info">.*?<li>.*?(税込.+?Crysta)}sio,
+      separator => '/',
       title => 'DQXショップ',
      },
     ];
