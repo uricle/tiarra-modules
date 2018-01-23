@@ -391,6 +391,11 @@ sub _config
       url   => 'https://www.youtube.com/watch*',
       extract => qr{document.title\s*=\s*\"(.+?)(?:\s+-\s+YouTube)?\"}io,
      },
+     {
+      url   => 'http://hiroba.dqx.jp/sc/shop/item*',
+      extract => qr{<div class="shop-headline-detail">.*?<li>.*?</li>.*?<li>(.+?)</li>}sio,
+      title => 'DQXショップ',
+     },
     ];
   $config;
 }
