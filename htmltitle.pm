@@ -398,6 +398,12 @@ sub _config
       separator => '/',
       title => 'DQXショップ',
      },
+     # hachima
+     {
+      url => 'http://blog.esuteru.com/*',
+      extract => qr{meta property="og:site_name" content="(.+?)"}sio,
+      title => 'だめぽ',
+     }
     ];
   $config;
 }
