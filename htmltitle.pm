@@ -165,6 +165,17 @@ sub _init {
 }
 
 # -----------------------------------------------------------------------------
+sub _ng_sites {
+  my %ng_sites = (
+		  '^http(s)?://localhost' => 'localhost',
+		  '://blog.esuteru.com/'=> 'はちま',
+		  '://jin115.com/' => 'ジン',
+		  '://hamusoku.com/' => 'ハム速',
+		  '://yaraon-blog.com/' => 'やらおん',
+		 );
+  return \%ng_sites;
+}
+# -----------------------------------------------------------------------------
 # $this->_config().
 # config for extract-heading.
 #
@@ -398,12 +409,6 @@ sub _config
       separator => '/',
       title => 'DQXショップ',
      },
-     # hachima
-     {
-      url => 'http://blog.esuteru.com/*',
-      extract => qr{meta property="og:site_name" content="(.+?)"}sio,
-      title => 'だめぽ',
-     }
     ];
   $config;
 }
@@ -597,6 +602,7 @@ sub title_get {
     my $ret;
 	#$ret = $requesturl;
 	# URLだけでわかるものは先に処理
+    $ret ||= ngSites_Get( $this, $requesturl );
     $ret ||= WikiPedia_Get( $requesturl );
     $ret ||= SearchEngine_Get( $requesturl );
     if ( $ret ne "" ) {
@@ -838,6 +844,17 @@ sub Mainichi_Get {
     $next =~ s/\+/ /g;
     $next =~ s/%([0-9a-fA-F]{2})/pack("H2",$1)/eg;
     $$text = $ua->request(GET $next)->decoded_content;
+  }
+  undef;
+}
+# ng sites
+sub ngSites_Get {
+  my ( $this, $url ) = @_;
+  my $assocarray = $this->_ng_sites();
+  foreach my $key ( keys %{$assocarray} ) {
+    if ( $url =~ $key ) {
+      return $assocarray->{$key} . " - だめぽ";
+    }
   }
   undef;
 }
