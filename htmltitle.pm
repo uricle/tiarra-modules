@@ -890,7 +890,7 @@ sub Amazon_Get {
     #my $newurl = "http://www.amazon.co.jp/exec/obidos/ASIN/$ASIN/$assoc/ref=nosim/";
     my $newurl = "http://amazon.jp/dp/$ASIN?m=AN1VRQENFRJN5&tag=$assoc";
     #my $newurl = $rndex;
-    return "$name ($newurl)";
+    return "$name\n ($newurl)";
   }
   undef;
 }
