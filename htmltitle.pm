@@ -2,7 +2,6 @@
 package Tools::htmltitle;
 
 use lib "$ENV{HOME}/perllib";
-use lib "$ENV{HOME}/perllib/share/perl5/";
 # --------------------------------------
 # FetchTitleを色々参考に
 # + Tools::htmltitle {
@@ -994,3 +993,5 @@ sub HTMLTitle_Get {
     }
     return $string;
 }
+
+1;
